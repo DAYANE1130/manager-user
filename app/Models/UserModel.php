@@ -4,13 +4,17 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
+use function PHPUnit\Framework\isNull;
+
 class UserModel extends Model
 {
   protected $table = 'users';  // Nome da tabela no banco de dados
   protected $allowedFields = [
     'username',
     'email',
-    'password'
+    'password',
+    'profile',
+    'reset_token'
     // 'email_verified_at',
     // 'reset_token',
     // 'reset_token_expires_at'
@@ -22,21 +26,16 @@ class UserModel extends Model
   protected $createdField  = 'created_at';
   protected $updatedField  = 'updated_at';
 
-  protected $beforeInsert = ['hashPassword']; // Antes de inserir, hashear a senha
+  protected $beforeInsert = ['hashPassword']; // Garantindo que salve  a senha criptografa
 
-  protected function hashPassword(array $data) // fazendo hash  de senha
-  {
-    if (isset($data['data']['password'])) {
-      $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
-    }
-    return $data;
-  }
+
 
   // Validation
   protected $validationRules = [
     'username'     => 'required|min_length[3]|max_length[255]',
     'email'    => 'required|valid_email|is_unique[users.email]',
-    'password' => 'required|min_length[8]'
+    'password' => 'required|min_length[6]',
+    'profile' => 'required',
   ];
   protected $validationMessages   = [
     'username' => [
@@ -52,7 +51,19 @@ class UserModel extends Model
     'password' => [
       'required'   => 'A senha é obrigatória.',
       'min_length' => 'A senha deve ter pelo menos 8 caracteres.'
+    ],
+    'profile' => [
+      'required'   => 'O tipo de perfil é obrigatório.',
     ]
+
   ];
   protected $skipValidation       = false;
+
+  protected function hashPassword(array $data) // fazendo hash  de senha
+  {
+    if (isset($data['data']['password'])) {
+      $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
+    }
+    return $data;
+  }
 }
