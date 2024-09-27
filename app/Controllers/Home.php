@@ -9,7 +9,7 @@ class Home extends BaseController
         $db = db_connect();
         $sql = 'select * from users';
         $result = $db->query($sql);
-        var_dump($result->getResultObject());
+        //var_dump($result->getResultObject());
         return view('welcome_message');
     }
 }
