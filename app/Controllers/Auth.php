@@ -26,7 +26,7 @@ class Auth extends BaseController
     protected $format    = 'json';
 
 
-    // Cadastro de usuário
+    // CADASTRO DE USUÁRIO INCLUIR TRATAMENTO DE ERROS, VER A DOC/ ,TRY/CATCH
     public function register()
     {
         $authService = service('auth');
