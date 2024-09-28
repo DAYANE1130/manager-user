@@ -18,7 +18,7 @@
     </div>
   <?php endif; ?>
 
-  <form action="<?= base_url('passwordController/sendResetLink') ?>" method="post">
+  <form action="<?= base_url('password/sendResetLink') ?>" method="post">
     <label for="email">Digite seu e-mail:</label>
     <input type="email" id="email" name="email" required>
     <button type="submit">Enviar link de redefinição</button>

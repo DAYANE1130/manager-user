@@ -3,10 +3,19 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
-use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\UserModel;
+use Firebase\JWT\JWT;
 
-class PasswordController extends BaseController
+use Firebase\JWT\Key;
+
+use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Shield\Authentication\Authenticators\Session;
+use CodeIgniter\Shield\Authentication\JWTManager;
+use CodeIgniter\Shield\Validation\ValidationRules;
+use Exception;
+
+
+class Password extends BaseController
 {
 
     protected $userModel;
@@ -36,7 +45,7 @@ class PasswordController extends BaseController
 
         // CRIA TOKEN PARA REDEFINIÇÃO DE SENHA
         $token = bin2hex(random_bytes(16));
-        $resetLink = base_url('PasswordController/resetPasswordForm?token=' . $token);
+        $resetLink = base_url('password/resetPasswordForm?token=' . $token);
 
         // GUARDA O TOKEN NO BANCO
 
@@ -65,7 +74,7 @@ class PasswordController extends BaseController
         return view('resetPassword', ['token' => $token]);
     }
 
-
+    // PERMITE O USUARIO MUDAR A SENHA FALTA AUTENTICAR COM O JWT 
     public function resetPassword()
     {
         $token = $this->request->getPost('token');
@@ -82,7 +91,7 @@ class PasswordController extends BaseController
         if (strlen($newPassword) < 6) {
             return redirect()->back()->with('error', 'A senha deve ter pelo menos 6 caracteres.');
         }
-
+        // OBS: FALTA AUTENTICAR COM O JWT   
         // ATUALIZA  A SENHA E LIMPA TOKEN
         // CRIAR UMA CAMADA DE SERVIÇO PARA REGRAS DE NEGOCIO? CONTROLLER MAIS LIMPO
 
