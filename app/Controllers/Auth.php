@@ -24,43 +24,14 @@ class Auth extends BaseController
     use ResponseTrait; // PARA TRATAMENTO DE ERROS PARA API
     protected $userModel = 'App\Models\UserModel';
     protected $format    = 'json';
-
-
-    // CADASTRO DE USUÁRIO INCLUIR TRATAMENTO DE ERROS, VER A DOC/ ,TRY/CATCH
-    public function register()
+    public function __construct()
     {
-        $authService = service('auth');
-        // Verifica se a requisição é GET para renderizar a view
-        if ($this->request->getMethod() === 'GET') {
-            return view('register');  // Renderiza a view register.php
-        }
+        $this->session = \Config\Services::session();
+    }
 
-        // Caso contrário, trata como POST (processa o cadastro)
-        $userModel = model('App\Models\UserModel');
 
-        // Dados do usuário a serem salvos
-        $userData = [
-            'username' => $this->request->getPost('username'),
-            'email'    => $this->request->getPost('email'),
-            'password' => $this->request->getPost('password'),
-            'profile'  => $this->request->getPost('profile')
-        ];
-
-        //E-mail é unico no banco
-        // $findUserByEmail = $userModel->where('email', $userData['email'])->first();
-
-        // CRIANDO USER NO BANCO -- Verificar validações da model, não está validando 
-        if (!$userModel->save($userData)) {
-            // Salva o novo usuário
-            return view('register', [
-                'validation' => $userModel->errors()
-            ]);
-            // return $this->response->setStatusCode(400)->setJSON([
-            //     'status' => 'error',
-            //     'errors' => $userModel->errors()
-            // ]);
-        }
-
+    private function generateJwt($userId, $email)
+    {
 
         // Gera o token JWT , COLOCAR EM UM HELPER/ UTILS
         $key = getenv('JWT_SECRET');
@@ -71,85 +42,116 @@ class Auth extends BaseController
             'aud' => 'theaudience',
             'iat' => $iat,
             'exp' => $exp,
-            'email' => $userData['email'],
-            'username' => $userData['username'],
-            'profile' => $userData['profile']
+            'userId' => $userId,
+            'email' => $email
+
         ];
 
-        // Codifica o token JWT
+        // Codifica o token JWT, gera token
         $token = JWT::encode($payload, $key, 'HS256');
-        var_dump($token);
+        return $token;
+    }
 
-        // Salvando user na session
-        $this->session->set('loggedUser', $userData);
+    //
+    public function register()
+    {
+        $authService = service('auth');
+        // Verifica se a requisição é GET para renderizar a view
+        if ($this->request->getMethod() === 'GET') {
+            return view('formRegister');  // Renderiza a view formregister.php
+        }
 
-        return redirect()->to('/site')->with('sucess', 'Usuário criado com sucesso');
+        // Caso contrário, trata como POST (processa o cadastro)
+
+        $userModel = new UserModel();
+
+        // Dados do usuário a serem salvos
+        $userData = [
+            'username' => $this->request->getPost('username'),
+            'email'    => $this->request->getPost('email'),
+            'password' => $this->request->getPost('password'),
+            'profile'  => $this->request->getPost('profile')
+        ];
+
+
+        //SALVANDO user NO BANCO DE DADOS
+        if ($userModel->save($userData)) {
+            // Se salvar com sucesso
+            // PEGA O ID DO USUARIO CRIADO
+            $userId = $userModel->getInsertId();
+
+            $token = $this->generateJwt($userId, $userData['email']);
+            var_dump($token);
+
+            // Salvando user na session
+            $this->session->set('loggedUser', $userData);
+            return redirect()->to('/site')->with('success', 'Cadastro concluído com sucesso!');
+        } else {
+            // Se houver erros de validação
+            return redirect()->back()->withInput()->with('errors', $userModel->errors());
+        };
     }
 
     // Login do usuário
     public function login()
     {
         // Verifica se a requisição é GET para renderizar a view
-        if ($this->request->getMethod() === 'get') {
-            return view('login');  // Renderiza a view register.php
+        if ($this->request->getMethod() === 'GET') {
+            return view('formLogin');  // Renderiza a view register.php
         }
-
+        // INSTANCIA A MODEL
         $userModel = model('App\Models\UserModel');
+
+        // PEGA DADOS DA REQUISIÇÃO
         $email = $this->request->getPost('email');
         $password = $this->request->getPost('password');
-        var_dump($password, $email);
 
+        // Inicializa a variável $rememberMe com false
+        $rememberMe = $this->request->getPost('remember_me') ? true : false; // Verifica se o checkbox está marcado
+
+        // BUSCA USUÁRIO COM ESSE E-MAIL NO BANCO  
         $user = $userModel->where('email', $email)->first();
 
+        // dd(password_verify($password, $user['password']));
+
         if (!$user || !password_verify($password, $user['password'])) {
-            return view('login', [
+            return view('formLogin', [
                 'error' => 'E-mail ou senha inválidos'
             ]);
         }
         if ($user) {
             // Gerar token JWT
-            $key = getenv('JWT_SECRET');
-            $iat = time();
-            $exp = $iat + 3600 * 24; // Token válido por 24 horas
-            $payload = [
-                'iss' => 'theissuer',
-                'aud' => 'theaudience',
-                'iat' => $iat,
-                'exp' => $exp,
-                'email' => $user['email'],
-                'username' => $user['username'],
-                'profile' => $user['profile']
-            ];
             //FAZER DEPOIS A FUNÇÃO DE VALIDAR O TOKEN  (isso dará autorização a rotas necessárias)
+            $userId = $userModel->getInsertId();
+            $token = $this->generateJwt($userId, $user['email']);
 
-            $token = JWT::encode($payload, $key, 'HS256');
+            // Determina a expiração do cookie
+            $expireTime = $rememberMe ? time() + (365 * 86400) : time() + 86400; // 1 ano ou 24 horas
 
-            var_dump($token);
-
-            // o cookie token JWT // criar função para reutilizar
+            // O cookie token JWT
             $cookieOptions = [
                 'name' => 'auth_token',
                 'value' => $token,
-                'expire' => time() + 86400, // 24 horas
+                'expire' => $expireTime,
                 'httponly' => true,
                 'secure' => true, // em produção ?
             ];
             setcookie($cookieOptions['name'], $cookieOptions['value'], $cookieOptions['expire'], "/", "", $cookieOptions['secure'], $cookieOptions['httponly']);
 
+
             //Salvando da sessão     
             $this->session->set('loggedUser', $user);
-            print_r($_SESSION);
 
-            return redirect()->to('site');
+            return redirect()->to('/site');
         } else {
-            return redirect()->to('login');
+            return redirect()->back();
         }
     }
 
 
     public function logout()
     {
-
+        // REMOVENDO OS DADOS DO USUARIO DA SESSION 
         $this->session->remove('loggedUser');
         // Remove o cookie do token JWT
         $cookie = new Cookie('auth_token', '', [
@@ -163,6 +165,6 @@ class Auth extends BaseController
         setcookie($cookie->getName(), '', $cookie->getExpiresTimestamp(), $cookie->getPath(), $cookie->getDomain(), $cookie->isSecure(), $cookie->isHTTPOnly());
 
 
-        redirect('login');
+        return  redirect()->to('/auth/login');
     }
 }

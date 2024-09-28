@@ -12,13 +12,16 @@
 
 
   <?php
-  if (isset($validation)) { ?>
+  if (session()->get('errors')) : ?>
     <div style="color: red">
-      <?php foreach ($validation as $error) { ?>
-        <p> <?php esc($error); ?> </p>
-      <?php } ?>
+      <ul>
+        <?php foreach (session()->get('errors') as $error) : ?>
+          <li> <?php echo esc($error) ?> </li>
+        <?php endforeach ?>
+      </ul>
+
     </div>
-  <?php } ?>
+  <?php endif ?>
 
   <p>
     <a href="<?php echo base_url('auth/register'); ?>"></a>
@@ -29,7 +32,7 @@
 <?php } ?>
 </p>
 
-<form action="<?php echo base_url('auth/register'); ?>" method="post">
+<form action="<?php echo base_url('auth/register'); ?>" method="post" autocomplete="off">
   <label for="username">Nome de Usuário:</label>
   <input type="text" id="username" name="username" required>
 
