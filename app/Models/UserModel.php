@@ -31,17 +31,19 @@ class UserModel extends Model
 
 
   // Validation
-  protected $validationRules = [
-    'username'     => 'required|min_length[3]|max_length[255]',
+  public $validationRules = [
+    'username' => 'required|min_length[3]|max_length[255]|alpha_space',  // Adiciona a regra para aceitar apenas strings
     'email'    => 'required|valid_email|is_unique[users.email]',
     'password' => 'required|min_length[6]',
-    'profile' => 'required',
+    'profile'  => 'required|in_list[user]',  // Aceita apenas 'user' como valor válido
   ];
-  protected $validationMessages   = [
+
+  public $validationMessages = [
     'username' => [
-      'required'    => 'O nome é obrigatório.',
-      'min_length'  => 'O nome deve ter pelo menos 3 caracteres.',
-      'max_length'  => 'O nome deve ter no máximo 255 caracteres.'
+      'required'    => 'O nome de usuário é obrigatório.',
+      'min_length'  => 'O nome de usuário deve ter pelo menos 3 caracteres.',
+      'max_length'  => 'O nome de usuário deve ter no máximo 255 caracteres.',
+      'alpha_space' => 'O nome de usuário deve conter apenas letras e espaços.',  // Mensagem de erro para strings inválidas
     ],
     'email' => [
       'required'    => 'O e-mail é obrigatório.',
@@ -50,13 +52,14 @@ class UserModel extends Model
     ],
     'password' => [
       'required'   => 'A senha é obrigatória.',
-      'min_length' => 'A senha deve ter pelo menos 8 caracteres.'
+      'min_length' => 'A senha deve ter pelo menos 6 caracteres.'
     ],
     'profile' => [
       'required'   => 'O tipo de perfil é obrigatório.',
+      'in_list'    => 'O perfil deve ser "user".',  // Mensagem de erro caso o valor de 'profile' seja diferente de 'user'
     ]
-
   ];
+
   protected $skipValidation       = false;
 
   protected function hashPassword(array $data) // fazendo hash  de senha
