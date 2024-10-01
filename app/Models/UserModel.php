@@ -28,15 +28,23 @@ class UserModel extends Model
 
   protected $beforeInsert = ['hashPassword']; // Garantindo que salve  a senha criptografa
 
+  // Para criptografar a senha antes de atualizar
+  protected $beforeUpdate = ['hashPassword'];
 
-
-  // Validation
-  public $validationRules = [
+  // Regras de validação para cadastro:
+  public $registerRules = [
     'username' => 'required|min_length[3]|max_length[255]|alpha_space',  // Adiciona a regra para aceitar apenas strings
     'email'    => 'required|valid_email|is_unique[users.email]',
     'password' => 'required|min_length[6]',
     'profile'  => 'required|in_list[user]',  // Aceita apenas 'user' como valor válido
   ];
+
+  // Regras de validação para login:
+  public $loginRules = [
+    'email'    => 'required|valid_email',
+    'password' => 'required|min_length[6]',
+  ];
+
 
   public $validationMessages = [
     'username' => [
@@ -68,5 +76,14 @@ class UserModel extends Model
       $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
     }
     return $data;
+  }
+
+  public function setValidationContext($context)
+  {
+    if ($context === 'register') {
+      $this->validationRules = $this->registerRules;
+    } elseif ($context === 'login') {
+      $this->validationRules = $this->loginRules;
+    }
   }
 }
