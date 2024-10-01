@@ -22,6 +22,15 @@
         </div>
     <?php endif; ?>
 
+    <?php if (session()->getFlashdata('success')): ?>
+        <div class="alert alert-success">
+            <p style="color: blue;" class="alert alert-success-custom" id="success-message">
+                <?= session()->getFlashdata('success') ?>
+            </p>
+
+        </div>
+    <?php endif; ?>
+
     <form action="<?= base_url('auth/login') ?>" method="post">
         <br>
         <label for="email">Email:</label>
@@ -43,6 +52,16 @@
         </p>
 
     </form>
+    <script>
+        setTimeout(function() {
+            var successMessage = document.getElementById('success-message');
+            if (successMessage) {
+                successMessage.style.display = 'none';
+            }
+        }, 5000);
+    </script>
 </body>
+
+
 
 </html>
