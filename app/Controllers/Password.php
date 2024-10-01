@@ -39,44 +39,12 @@ class Password extends BaseController
     {
         // Verifica se o usuário está logado
         if (!$this->session->has('loggedUser')) {
-            return view('forgotPasswordForm');
+            return view('formForgotPassword');
+        } else {
+            return view('auth/login');
         }
     }
 
-
-    // public function sendResetLink()
-    // {
-
-    //     //PEGa O EMAIL ENVIADO 
-    //     $email = $this->request->getPost('email');
-    //     $user = $this->userModel->where('email', $email)->first();
-
-    //     if (!$user) {
-    //         return redirect()->back()->with('error', 'O email não foi encontrado');
-    //     }
-    //     // CONFIRMANDO QUE USUARIO  NÃO ESTÁ DESLOGADO
-    //     $loggedUser = session()->get('loggedUser');
-    //     if (!$loggedUser) {
-
-    //         // CRIA TOKEN PARA REDEFINIÇÃO DE SENHA
-    //         $token = bin2hex(random_bytes(16));
-    //         $resetLink = base_url('password/resetPasswordForm?token=' . $token);
-
-    //         // GUARDA O TOKEN NO BANCO
-
-    //         $userId = (int)$user['id'];
-    //         $userData = new \stdClass();
-    //         $userData->reset_token = $token;
-
-    //         $this->userModel->update($userId, $userData);
-
-    //         // ENVIA EMAIL COM LINK DE REDEFINIÇÃO
-
-    //         $this->sendResetEmail($email, $resetLink, $token);
-
-    //         return redirect()->to('password/forgotPasswordForm')->with('success', 'Um link de redefinição de senha foi enviado para seu e-mail');
-    //     }
-    // }
 
     public function sendResetLink()
     {
@@ -91,21 +59,20 @@ class Password extends BaseController
             return redirect()->back()->with('error', 'O email não foi encontrado');
         }
 
-        // CRIA TOKEN PARA REDEFINIÇÃO DE SENHA
-        $token = bin2hex(random_bytes(16));
-        $resetLink = base_url('password/resetPasswordForm?token=' . $token);
+        // Cria link para rota que exibe o formulário
+        $resetLink = base_url('password/ResetPasswordForm');
 
         // GUARDA O TOKEN NO BANCO
 
         $userId = (int)$user['id'];
         $userData = new \stdClass();
-        $userData->reset_token = $token;
+        $userData->password = $user['password'];
 
         $this->userModel->update($userId, $userData);
 
         // ENVIA EMAIL COM LINK DE REDEFINIÇÃO
 
-        $this->sendResetEmail($email, $resetLink, $token);
+        $this->sendResetEmail($email, $resetLink);
 
         // Armazena a mensagem na sessão
         $this->session->setFlashdata('sucess', 'Um e-mail foi enviado para sua caixa de entrada com instruções para redefinir sua senha.');
@@ -117,49 +84,54 @@ class Password extends BaseController
 
 
 
-    // MOSTRA FORMULARIO PARA CRIAR NOVA SENHA
+    // MOSTRA FORMULARIO ao usuário PARA CRIAR NOVA SENHA
     public function resetPasswordForm()
     {
-        $token = $this->request->getGet('token');
+        //$token = $this->request->getGet();
 
-        return view('resetPassword', ['token' => $token]);
+        return view('formResetPassword');
     }
 
     // PERMITE O USUARIO MUDAR A SENHA 
     public function resetPassword()
     {
-        $token = $this->request->getPost('token');
-        $newPassword = $this->request->getPost('password');
+        $userModel = new UserModel();
+        // $token = $this->request->getPost('token');
+
+        // PEGA DADOS DA REQUISIÇÃO
+        $userData = [
+            'email' => $this->request->getPost('email'),
+            'new_password' => $this->request->getPost('new_password'),
+            'confirm_password' => $this->request->getPost('confirm_password')
+        ];
+        $userModel->setValidationContext('resetPassword');
+
+        // VALIDA SENHA E email
+        $userModel->setValidationContext('resetPassword');
+
+
+
+        if (!$userModel->validate($userData)) {
+
+            return redirect()->back()->withInput()->with('errors', $userModel->errors());
+        }
 
         // BUSCA USUARIO
-        $user = $this->userModel->where('reset_token', $token)->first();
+        $user = $this->userModel->where('email', $userData['email'])->first();
 
         if (!$user) {
-            return redirect()->to('/login')->with('error', 'Token inválido ou expirado.');
+            $errors = ['error' => 'Não existe um usuário com o e-mai informado'];
+            return redirect()->back()->with('errors', $errors);
         }
-        // CCONFIRMANDO QUE USUÁRIO NÃO ESTÁ LOGADO
-        $loggedUser = session()->get('loggedUser'); // Aqui, assumo que o e-mail do usuário está salvo na sessão
-        if (!$loggedUser) {
-            return redirect()->to('/auth/login')->with('error', 'Você precisa estar logado para alterar a senha.');
-        }
-
-
-        // VALIDA SENHA
-        if (strlen($newPassword) < 6) {
-            return redirect()->back()->with('error', 'A senha deve ter pelo menos 6 caracteres.');
-        }
-        // OBS: FALTA AUTENTICAR COM O JWT   
-        // ATUALIZA  A SENHA E LIMPA TOKEN
-        // CRIAR UMA CAMADA DE SERVIÇO PARA REGRAS DE NEGOCIO? CONTROLLER MAIS LIMPO
-
-        // $this->userModel->update($user['id'], [
-        //     'password' => $newPassword,
-        //     'reset_token' => null
-        // ]);
+        // ATUALIZA A SENHA E LIMPA TOKEN
+        $userModel->where('email', $userData['email'])
+            ->set(['password' => $userData['new_password']])
+            ->update();
 
         // Redireciona com mensagem de sucesso
         return redirect()->to('auth/login')->with('success', 'Senha redefinida com sucesso. Faça login.');
     }
+
 
     // MOVER PARA O ARQUIVO CORRETO DE CONFIGURAÇÕES
     // private function sendResetEmail($email, $resetLink, $token)

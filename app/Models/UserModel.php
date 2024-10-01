@@ -14,7 +14,7 @@ class UserModel extends Model
     'email',
     'password',
     'profile',
-    'reset_token'
+    //'reset_token'
     // 'email_verified_at',
     // 'reset_token',
     // 'reset_token_expires_at'
@@ -70,6 +70,16 @@ class UserModel extends Model
 
   protected $skipValidation       = false;
 
+  public function resetPasswordRules()
+  {
+    return [
+      'email' => 'required|valid_email',
+      'new_password' => 'required|min_length[6]',
+      'confirm_password' => 'required|matches[new_password]'
+    ];
+  }
+
+
   protected function hashPassword(array $data) // fazendo hash  de senha
   {
     if (isset($data['data']['password'])) {
@@ -84,6 +94,8 @@ class UserModel extends Model
       $this->validationRules = $this->registerRules;
     } elseif ($context === 'login') {
       $this->validationRules = $this->loginRules;
+    } elseif ($context === 'resetPassword') {
+      $this->validationRules = $this->resetPasswordRules();
     }
   }
 }
