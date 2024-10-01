@@ -12,7 +12,7 @@ class Site extends BaseController
         $logged = session()->get('loggedUser');
 
         if (!$logged) {
-            redirect()->to('login');
+            return   redirect()->to('login'); // faltava o return
         }
 
         return view('site', ['loggedUser' => $logged]);
