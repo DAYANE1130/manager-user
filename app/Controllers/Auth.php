@@ -26,9 +26,17 @@ class Auth extends BaseController
     protected $format    = 'json';
     public function __construct()
     {
-        $this->session = \Config\Services::session();
+        // $this->session = \Config\Services::session();
     }
 
+    public function index()
+    {
+        // $data = [];
+        // if (session()->has('errors')) {
+        //     $data['errors'] = session('errors');
+        // }
+        return view('formLogin');
+    }
 
     private function generateJwt($userId, $email)
     {
@@ -65,6 +73,10 @@ class Auth extends BaseController
 
         $userModel = new UserModel();
 
+        // Definindo o contexto de validação para "register"
+        $userModel->setValidationContext('register');
+
+
         // Dados do usuário a serem salvos
         $userData = [
             'username' => $this->request->getPost('username'),
@@ -73,24 +85,26 @@ class Auth extends BaseController
             'profile'  => $this->request->getPost('profile')
         ];
 
-
-        //SALVANDO user NO BANCO DE DADOS
-        if ($userModel->save($userData)) {
-            // Se salvar com sucesso
-            // PEGA O ID DO USUARIO CRIADO
-            $userId = $userModel->getInsertId();
-
-            $token = $this->generateJwt($userId, $userData['email']);
-            var_dump($token);
-
-            // Salvando user na session
-            $this->session->set('loggedUser', $userData);
-            return redirect()->to('/site')->with('success', 'Cadastro concluído com sucesso!');
-        } else {
-            // Se houver erros de validação
+        // //VALIDANDO DADOS ENVIADOS NA REQUISIÇÃO
+        if (!$userModel->validate($userData)) {
             return redirect()->back()->withInput()->with('errors', $userModel->errors());
-        };
+        }
+
+        // SALVANDO user NO BANCO DE DADOS
+        $userModel->save($userData);
+
+        // Se salvar com sucesso
+        // PEGA O ID DO USUARIO CRIADO
+        $userId = $userModel->getInsertId();
+
+        $token = $this->generateJwt($userId, $userData['email']);
+        var_dump($token);
+
+        // Salvando user na session
+        $this->session->set('loggedUser', $userData);
+        return redirect()->to('/site')->with('success', 'Cadastro concluído com sucesso!');
     }
+
 
     // Login do usuário
     public function login()
@@ -102,50 +116,60 @@ class Auth extends BaseController
         // INSTANCIA A MODEL
         $userModel = model('App\Models\UserModel');
 
+        // Definindo o contexto de validação para "register"
+        $userModel->setValidationContext('login');
+
         // PEGA DADOS DA REQUISIÇÃO
-        $email = $this->request->getPost('email');
-        $password = $this->request->getPost('password');
+        $userData = [
+            'email' => $this->request->getPost('email'),
+            'password' => $this->request->getPost('password')
+        ];
+
+        if (!$userModel->validate($userData)) {
+
+            return redirect()->back()->withInput()->with('errors', $userModel->errors());
+        }
 
         // Inicializa a variável $rememberMe com false
         $rememberMe = $this->request->getPost('remember_me') ? true : false; // Verifica se o checkbox está marcado
 
         // BUSCA USUÁRIO COM ESSE E-MAIL NO BANCO  
-        $user = $userModel->where('email', $email)->first();
-
+        $user = $userModel->where('email', $userData['email'])->first();
         // dd(password_verify($password, $user['password']));
 
-        if (!$user || !password_verify($password, $user['password'])) {
-            return view('formLogin', [
-                'error' => 'E-mail ou senha inválidos'
-            ]);
+
+
+        if (!$user || !password_verify($userData['password'], $user['password'])) {
+            // Cria um array de mesmo nome e insere  erro manualmente
+            $errors = ['login' => 'Email ou senha inválidos'];
+            return redirect()->back()->withInput()->with('errors', $errors);
         }
-        if ($user) {
-            // Gerar token JWT
-            //FAZER DEPOIS A FUNÇÃO DE VALIDAR O TOKEN  (isso dará autorização a rotas necessárias)
-            $userId = $userModel->getInsertId();
-            $token = $this->generateJwt($userId, $user['email']);
-
-            // Determina a expiração do cookie
-            $expireTime = $rememberMe ? time() + (365 * 86400) : time() + 86400; // 1 ano ou 24 horas
-
-            // O cookie token JWT
-            $cookieOptions = [
-                'name' => 'auth_token',
-                'value' => $token,
-                'expire' => $expireTime,
-                'httponly' => true,
-                'secure' => true, // em produção ?
-            ];
-            setcookie($cookieOptions['name'], $cookieOptions['value'], $cookieOptions['expire'], "/", "", $cookieOptions['secure'], $cookieOptions['httponly']);
 
 
-            //Salvando da sessão     
-            $this->session->set('loggedUser', $user);
+        // Gerar token JWT
+        //FAZER DEPOIS A FUNÇÃO DE VALIDAR O TOKEN  (isso dará autorização a rotas necessárias)
+        $userId = $userModel->getInsertId();
+        $token = $this->generateJwt($userId, $user['email']);
+        var_dump($token);
 
-            return redirect()->to('/site');
-        } else {
-            return redirect()->back();
-        }
+        // Determina a expiração do cookie
+        $expireTime = $rememberMe ? time() + (365 * 86400) : time() + 86400; // 1 ano ou 24 horas
+
+        // O cookie token JWT
+        $cookieOptions = [
+            'name' => 'auth_token',
+            'value' => $token,
+            'expire' => $expireTime,
+            'httponly' => true,
+            'secure' => true, // em produção ?
+        ];
+        setcookie($cookieOptions['name'], $cookieOptions['value'], $cookieOptions['expire'], "/", "", $cookieOptions['secure'], $cookieOptions['httponly']);
+
+
+        //Salvando da sessão     
+        $this->session->set('loggedUser', $user);
+
+        return redirect()->to('/site');
     }
 
 
